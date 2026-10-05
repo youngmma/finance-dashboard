@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Finance HQ</title>
+<meta name="description" content="Personal finance command center: bills, spending, and which card to use.">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0f1419">
+<link rel="apple-touch-icon" href="./icons/icon.svg">
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js').catch(function (e) {
+      console.warn('SW register failed:', e);
+    });
+  });
+}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root{
+  --bg:#0f1419; --surface:#171e26; --surface2:#202936; --line:#2b3542;
+  --text:#e9eef4; --muted:#93a1b0; --faint:#5d6b7a;
+  --green:#3ecf8e; --green-dim:#143b2a;
+  --amber:#f5a524; --amber-dim:#3d2c10;
+  --red:#f2555a; --red-dim:#3d1518;
+  --blue:#4a9eff; --blue-dim:#14283d;
+  --radius:14px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Noto Sans KR",sans-serif;
+  line-height:1.6; letter-spacing:-0.01em; padding-bottom:env(safe-area-inset-bottom);
+}
+.wrap{max-width:640px; margin:0 auto; padding:0 16px 40px;}
+header.top{
+  position:sticky; top:0; z-index:10;
+  background:rgba(15,20,25,.92); backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+  padding:14px 16px 12px;
+}
+header.top .row{max-width:640px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px;}
+.brand{font-size:19px; font-weight:800;}
+.brand small{display:block; font-size:12px; font-weight:500; color:var(--muted);}
+.dateline{font-size:12px; color:var(--muted); margin-top:2px;}
+.lang{display:flex; border:1px solid var(--line); border-radius:999px; overflow:hidden; flex-shrink:0;}
+.lang button{background:transparent; border:0; color:var(--muted); font-size:13px; font-weight:700; padding:7px 13px; cursor:pointer; font-family:inherit;}
+.lang button.on{background:var(--surface2); color:var(--text);}
+h2.sec{font-size:15px; font-weight:800; margin:26px 0 10px; display:flex; align-items:center; gap:8px;}
+h2.sec .count{font-size:12px; font-weight:700; color:var(--muted); background:var(--surface2); border-radius:999px; padding:2px 9px;}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px 15px; margin-bottom:10px;}
+.rowline{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.muted{color:var(--muted);} .small{font-size:13px;} .tiny{font-size:12px;}
+.money{font-variant-numeric:tabular-nums; font-weight:700;}
+.chip{display:inline-block; font-size:12px; font-weight:800; border-radius:999px; padding:3px 10px; white-space:nowrap;}
+.chip.red{background:var(--red-dim); color:#ff8a8e;}
+.chip.amber{background:var(--amber-dim); color:#ffbe55;}
+.chip.green{background:var(--green-dim); color:#5fe3a1;}
+.chip.gray{background:var(--surface2); color:var(--muted);}
+.chip.blue{background:var(--blue-dim); color:#7db9ff;}
+button.btn{
+  font-family:inherit; border:1px solid var(--line); background:var(--surface2); color:var(--text);
+  border-radius:10px; padding:9px 14px; font-size:14px; font-weight:700; cursor:pointer;
+}
+button.btn:active{transform:scale(.97);}
+button.btn.primary{background:var(--green); border-color:var(--green); color:#06281a;}
+button.btn.danger{background:transparent; border-color:var(--red-dim); color:#ff8a8e;}
+button.btn.ghost{background:transparent;}
+button.btn.sm{padding:6px 10px; font-size:13px; border-radius:8px;}
+input,select{
+  font-family:inherit; width:100%; background:var(--bg); border:1px solid var(--line); color:var(--text);
+  border-radius:10px; padding:11px 12px; font-size:15px; outline:none;
+}
+input:focus,select:focus{border-color:var(--green);}
+label.lbl{display:block; font-size:13px; font-weight:700; color:var(--muted); margin:10px 0 5px;}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.quick{margin-top:4px;}
+.quick input{font-size:16px; padding:13px 14px;}
+.hint{font-size:12.5px; color:var(--faint); margin-top:6px;}
+.verdict{margin-top:10px; border-radius:10px; padding:12px 13px; font-size:14px; display:none;}
+.verdict.show{display:block;}
+.verdict.good{background:var(--green-dim); border:1px solid #1e5c3c;}
+.verdict.bad{background:var(--amber-dim); border:1px solid #6b4a15;}
+.verdict.unknown{background:var(--blue-dim); border:1px solid #234a75;}
+.bar-row{display:flex; align-items:center; gap:10px; margin:7px 0; font-size:13px;}
+.bar-row .cat{width:64px; flex-shrink:0; color:var(--muted); font-weight:700;}
+.bar-row .track{flex:1; height:9px; background:var(--surface2); border-radius:99px; overflow:hidden;}
+.bar-row .fill{height:100%; background:var(--green); border-radius:99px;}
+.bar-row .amt{width:88px; text-align:right; font-variant-numeric:tabular-nums; font-weight:700; flex-shrink:0;}
+.listitem{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; border-bottom:1px solid var(--line);}
+.listitem:last-child{border-bottom:0;}
+.xbtn{background:transparent; border:0; color:var(--faint); font-size:17px; cursor:pointer; padding:4px 8px; border-radius:8px; flex-shrink:0;}
+.xbtn:active{background:var(--surface2);}
+.rules{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:8px;}
+.rules .r label{font-size:11px; color:var(--muted); display:block; margin-bottom:3px; font-weight:700;}
+.rules .r input{padding:8px 6px; font-size:14px; text-align:center;}
+.monthnav{display:flex; align-items:center; justify-content:space-between; margin:4px 0 6px;}
+.monthnav .m{font-size:15px; font-weight:800;}
+.empty{text-align:center; color:var(--faint); padding:22px 10px; font-size:14px;}
+.empty button{margin-top:10px;}
+footer{margin-top:34px; padding-top:16px; border-top:1px solid var(--line); text-align:center; color:var(--faint); font-size:12px;}
+details.manage{margin-top:8px;}
+details.manage summary{cursor:pointer; font-size:13px; font-weight:700; color:var(--muted); padding:8px 0;}
+.toolbar{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
+.due-total{display:flex; justify-content:space-between; align-items:center; background:var(--surface2); border-radius:10px; padding:10px 14px; margin-top:10px; font-size:14px;}
+.due-total strong{font-size:17px;}
+kbd{font-family:inherit; background:var(--surface2); border:1px solid var(--line); border-radius:6px; padding:1px 7px; font-size:12.5px;}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="row">
+    <div>
+      <div class="brand">Finance HQ</div>
+      <div class="dateline" id="dateline"></div>
+    </div>
+    <div class="lang" role="group" aria-label="language">
+      <button id="lang-ko" class="on">한국어</button>
+      <button id="lang-en">EN</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <h2 class="sec"><span data-i18n="bills_due">이번 주 청구서</span><span class="count" id="bills-count"></span></h2>
+  <div id="bills-due"></div>
+
+  <h2 class="sec"><span data-i18n="quick_log">빠른 소비 입력</span></h2>
+  <div class="card quick">
+    <input id="spend-input" maxlength="120" data-i18n-ph="spend_ph" placeholder="예: Publix $49 AmEx2003" autocomplete="off" enterkeyhint="done">
+    <div class="hint" data-i18n="spend_hint">가게 이름, 금액, 카드 별명을 한 줄로 입력하세요. 예: <kbd>스타벅스 5500원</kbd> <kbd>Shell $60 on CitiCC</kbd></div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <h2 class="sec"><span data-i18n="advisor">어떤 카드로 결제할까</span></h2>
+  <div class="card">
+    <input id="adv-input" maxlength="120" data-i18n-ph="adv_ph" placeholder="예: 주유소, Costco, 스타벅스" autocomplete="off">
+    <div class="verdict" id="adv-result" style="margin-top:10px;"></div>
+  </div>
+
+  <h2 class="sec"><span data-i18n="month_spend">이번 달 지출</span></h2>
+  <div class="card">
+    <div class="monthnav">
+      <button class="btn sm ghost" id="m-prev">‹</button>
+      <div class="m" id="m-label"></div>
+      <button class="btn sm ghost" id="m-next">›</button>
+    </div>
+    <div id="cat-bars"></div>
+    <div class="due-total"><span data-i18n="total">합계</span><strong class="money" id="m-total"></strong></div>
+  </div>
+
+  <h2 class="sec"><span data-i18n="history">소비 내역</span><span class="count" id="hist-count"></span></h2>
+  <div class="card" id="history" style="padding-top:4px; padding-bottom:4px;"></div>
+
+  <h2 class="sec"><span data-i18n="cards">내 카드</span><span class="count" id="cards-count"></span></h2>
+  <div id="cards"></div>
+  <div class="card">
+    <div class="hint" style="margin:0 0 8px;" data-i18n="plaid_note">은행 잔액은 채팅에서 Muse에게 물어보세요. Plaid를 연결하면 실시간으로 확인해 드립니다.</div>
+    <details class="manage">
+      <summary data-i18n="add_card">카드 추가</summary>
+      <label class="lbl" data-i18n="nickname">별명</label>
+      <input id="nc-nick" maxlength="40" placeholder="AmEx2003">
+      <label class="lbl" data-i18n="reward_rules">리워드 규칙 (% 입력)</label>
+      <div class="rules" id="nc-rules"></div>
+      <div class="toolbar"><button class="btn primary" id="nc-add" data-i18n="add">추가</button></div>
+    </details>
+  </div>
+
+  <h2 class="sec"><span data-i18n="bills">청구서 관리</span><span class="count" id="bills-m-count"></span></h2>
+  <div id="bills-manage"></div>
+  <div class="card">
+    <details class="manage">
+      <summary data-i18n="add_bill">청구서 추가</summary>
+      <label class="lbl" data-i18n="bill_name">이름</label>
+      <input id="nb-name" maxlength="60" placeholder="Dominion Energy">
+      <div class="grid2">
+        <div><label class="lbl" data-i18n="amount">금액 ($)</label><input id="nb-amt" type="number" min="0" step="0.01" placeholder="85"></div>
+        <div><label class="lbl" data-i18n="due_day">납부일 (매월)</label><input id="nb-day" type="number" min="1" max="31" placeholder="15"></div>
+      </div>
+      <div class="toolbar"><button class="btn primary" id="nb-add" data-i18n="add">추가</button></div>
+    </details>
+  </div>
+
+  <h2 class="sec"><span data-i18n="data">데이터</span></h2>
+  <div class="card">
+    <div class="toolbar">
+      <button class="btn sm" id="d-export" data-i18n="export">내보내기 (JSON)</button>
+      <button class="btn sm" id="d-import-btn" data-i18n="import">가져오기</button>
+      <input type="file" id="d-import" accept="application/json" style="display:none;">
+      <button class="btn sm" id="d-sample" data-i18n="load_sample">샘플로 체험하기</button>
+      <button class="btn sm danger" id="d-reset" data-i18n="reset_all">전체 초기화</button>
+    </div>
+    <div class="hint" data-i18n="data_hint">모든 데이터는 이 기기의 브라우저에만 저장됩니다. 서버로 전송되지 않습니다.</div>
+  </div>
+
+  <footer>© 2026 Young Ma Studio</footer>
+</div>
+<script>
+'use strict';
+/* ================= i18n ================= */
+const STR = {
+ko:{
+  bills_due:'이번 주 청구서', quick_log:'빠른 소비 입력', advisor:'어떤 카드로 결제할까',
+  month_spend:'이번 달 지출', history:'소비 내역', cards:'내 카드', bills:'청구서 관리', data:'데이터',
+  total:'합계', add:'추가', nickname:'별명', reward_rules:'리워드 규칙 (% 입력)', add_card:'카드 추가',
+  bill_name:'이름', amount:'금액 ($)', due_day:'납부일 (매월)', add_bill:'청구서 추가',
+  export:'내보내기 (JSON)', import:'가져오기', load_sample:'샘플로 체험하기', reset_all:'전체 초기화',
+  data_hint:'모든 데이터는 이 기기의 브라우저에만 저장됩니다. 서버로 전송되지 않습니다.',
+  plaid_note:'은행 잔액은 채팅에서 Muse에게 물어보세요. Plaid를 연결하면 실시간으로 확인해 드립니다.',
+  spend_ph:'예: Publix $49 AmEx2003',
+  spend_hint:'가게 이름, 금액, 카드 별명을 한 줄로 입력하세요.',
+  adv_ph:'예: 주유소, Costco, 스타벅스',
+  d_today:'오늘', d_tomorrow:'내일', d_overdue:'연체', d_days:'일 후', mark_paid:'납부 완료',
+  no_bills:'이번 주에 낼 청구서가 없습니다. 여유로운 한 주네요.',
+  no_spends:'아직 입력된 소비가 없습니다. 위에서 한 줄로 입력해 보세요.',
+  no_cards:'등록된 카드가 없습니다. 아래에서 추가하세요.',
+  no_bills_m:'등록된 청구서가 없습니다.',
+  v_good_t:'최적의 선택이에요', v_good_d:'{card}로 {rate}% 리워드를 받고 있어요.',
+  v_bad_t:'아쉬운 선택이에요', v_bad_d:'{rec} {rate}%가 나았어요. 약 {lost}을 더 받을 수 있었어요.',
+  v_nocard_t:'카드가 기록되지 않았어요', v_nocard_d:'{rec} {rate}%를 추천해요. 다음엔 카드 별명도 함께 입력해 보세요.',
+  v_nocards:'먼저 카드를 등록하세요.',
+  adv_t:'추천 카드', adv_d:'{merchant}은(는) {cat} 카테고리예요. {card}로 결제하면 {rate}% 리워드.',
+  adv_nocards:'먼저 카드를 등록하세요.',
+  confirm_reset:'모든 카드, 청구서, 소비 내역을 지울까요?',
+  sample_loaded:'샘플 데이터를 불러왔습니다. 실제 데이터로 교체하세요.',
+  import_ok:'데이터를 가져왔습니다.', import_fail:'파일을 읽을 수 없습니다.',
+  cat_groceries:'식료품', cat_gas:'주유', cat_dining:'외식', cat_coffee:'카페', cat_travel:'여행',
+  cat_utilities:'공과금', cat_shopping:'쇼핑', cat_health:'건강', cat_kids:'아이들', cat_other:'기타',
+  sample_tag:'샘플',
+},
+en:{
+  bills_due:'Bills due this week', quick_log:'Quick spend log', advisor:'Which card should I use',
+  month_spend:'This month spending', history:'Spending history', cards:'My cards', bills:'Manage bills', data:'Data',
+  total:'Total', add:'Add', nickname:'Nickname', reward_rules:'Reward rules (enter %)', add_card:'Add card',
+  bill_name:'Name', amount:'Amount ($)', due_day:'Due day (monthly)', add_bill:'Add bill',
+  export:'Export (JSON)', import:'Import', load_sample:'Try with sample data', reset_all:'Reset everything',
+  data_hint:'All data stays in this device browser only. Nothing is sent to any server.',
+  plaid_note:'Ask Muse in chat for bank balances. Connect Plaid for live balances.',
+  spend_ph:'e.g. Publix $49 AmEx2003',
+  spend_hint:'Type store, amount, and card nickname in one line.',
+  adv_ph:'e.g. gas station, Costco, Starbucks',
+  d_today:'Today', d_tomorrow:'Tomorrow', d_overdue:'Overdue', d_days:'days left', mark_paid:'Mark paid',
+  no_bills:'No bills due this week. Enjoy the breather.',
+  no_spends:'No spending logged yet. Try the one-line input above.',
+  no_cards:'No cards yet. Add one below.',
+  no_bills_m:'No bills yet.',
+  v_good_t:'Optimal choice', v_good_d:'Earning {rate}% rewards on {card}.',
+  v_bad_t:'Could do better', v_bad_d:'{rec} at {rate}% was better. You left about {lost} on the table.',
+  v_nocard_t:'No card recorded', v_nocard_d:'Recommended: {rec} at {rate}%. Add your card nickname next time.',
+  v_nocards:'Add a card first.',
+  adv_t:'Recommended card', adv_d:'{merchant} looks like {cat}. Pay with {card} for {rate}% rewards.',
+  adv_nocards:'Add a card first.',
+  confirm_reset:'Delete all cards, bills, and spending history?',
+  sample_loaded:'Sample data loaded. Replace it with your real data.',
+  import_ok:'Data imported.', import_fail:'Could not read the file.',
+  cat_groceries:'Groceries', cat_gas:'Gas', cat_dining:'Dining', cat_coffee:'Coffee', cat_travel:'Travel',
+  cat_utilities:'Utilities', cat_shopping:'Shopping', cat_health:'Health', cat_kids:'Kids', cat_other:'Other',
+  sample_tag:'SAMPLE',
+}};
+const CATS = ['groceries','gas','dining','coffee','travel','utilities','shopping','health','kids','other'];
+
+/* ================= pure logic (mirrors logic.js, tested) ================= */
+const CATEGORY_KEYWORDS = [
+  ['groceries', ['publix', 'whole foods', 'trader joe', 'costco', 'walmart', 'kroger', 'safeway', 'aldi', 'hmart', 'lotte mart', 'grocery', '식료품', '마트', '장보기', '코스트코', '월마트', '식품']],
+  ['gas', ['shell', 'exxon', 'chevron', 'bp ', 'wawa', 'sunoco', 'gas station', '주유', '주유소', '기름']],
+  ['dining', ['restaurant', 'chipotle', 'mcdonald', 'chick-fil-a', 'panera', 'olive garden', '식당', '레스토랑', '외식', '치킨', '피자', '햄버거', '분식']],
+  ['coffee', ['starbucks', '스타벅스', '카페', 'coffee', 'dunkin', 'peet']],
+  ['travel', ['united', 'delta', 'american airlines', 'marriott', 'hyatt', 'airbnb', 'amtrak', '항공', '호텔', '여행', '렌터카', 'uber', 'lyft']],
+  ['utilities', ['dominion', 'novec', 'washington gas', 'verizon', 'fios', '전기', '가스요금', '수도', '인터넷', '휴대폰', 'utility']],
+  ['shopping', ['amazon', 'target', 'best buy', 'home depot', 'lowes', '쇼핑', '아마존', '타겟']],
+  ['health', ['cvs', 'walgreens', 'pharmacy', '약국', '병원', '치과', 'doctor', 'dentist']],
+  ['kids', ['school', '학원', '피아노', 'swim', '수영', 'kids', '아이']],
+];
+function categorize(merchant){
+  const m = String(merchant||'').toLowerCase();
+  for(const [cat, kws] of CATEGORY_KEYWORDS){ if(kws.some(k=>m.includes(k.toLowerCase()))) return cat; }
+  return 'other';
+}
+const CONNECTORS = [' on ', ' at ', ' with ', '으로', '로 ', '에서', '에게'];
+function parseSpendInput(text, knownCards){
+  const cards = Array.isArray(knownCards)?knownCards:[];
+  let rest = String(text||'').trim();
+  if(!rest) return null;
+  let amount=null, currency='USD';
+  const usdMatch = rest.match(/\$\s*([\d,]+(?:\.\d{1,2})?)/);
+  const krwMatch = !usdMatch && rest.match(/([\d,]+)\s*원/);
+  const numMatch = !usdMatch && !krwMatch && rest.match(/(?:^|\s)([\d,]+(?:\.\d{1,2})?)(?=\s|$)/);
+  const m = usdMatch||krwMatch||numMatch;
+  if(m){
+    amount = parseFloat(m[1].replace(/,/g,''));
+    if(krwMatch) currency='KRW';
+    rest = (rest.slice(0,m.index)+' '+rest.slice(m.index+m[0].length)).replace(/\s+/g,' ').trim();
+    rest = rest.replace(/^\$\s*/,'').replace(/\s+\$$/,'').trim();
+  }
+  let cardNickname=null;
+  const sorted=[...cards].sort((a,b)=>b.nickname.length-a.nickname.length);
+  for(const c of sorted){
+    const nick=String(c.nickname||'').trim(); if(!nick) continue;
+    const idx=rest.toLowerCase().indexOf(nick.toLowerCase());
+    if(idx!==-1){ cardNickname=c.nickname; rest=(rest.slice(0,idx)+' '+rest.slice(idx+nick.length)).replace(/\s+/g,' ').trim(); break; }
+  }
+  let prev;
+  do{ prev=rest;
+    for(const conn of CONNECTORS){ const c=conn.trim(); const low=rest.toLowerCase();
+      if(low.endsWith(' '+c)||low===c) rest=rest.slice(0, low===c?0:low.lastIndexOf(' '+c)).trim();
+      if(low.startsWith(c+' ')) rest=rest.slice(c.length).trim();
+    }
+  }while(rest!==prev);
+  if(amount===null||Number.isNaN(amount)) return null;
+  return {merchant:rest||'(no merchant)', amount, currency, cardNickname};
+}
+function rateFor(card, category){
+  const rules=(card&&card.rules)||{};
+  if(Object.prototype.hasOwnProperty.call(rules,category)) return Number(rules[category])||0;
+  return Number(rules.other)||0;
+}
+function recommendCard(category, cards){
+  const list=Array.isArray(cards)?cards:[];
+  if(!list.length) return null;
+  let best=list[0], bestRate=rateFor(best,category);
+  for(const c of list.slice(1)){ const r=rateFor(c,category); if(r>bestRate){best=c;bestRate=r;} }
+  return {card:best, rate:bestRate};
+}
+function verdict(spend, cards){
+  const list=Array.isArray(cards)?cards:[];
+  const category=spend.category||categorize(spend.merchant);
+  const rec=recommendCard(category,list);
+  const used=spend.cardNickname?list.find(c=>c.nickname.toLowerCase()===String(spend.cardNickname).toLowerCase())||null:null;
+  const usedRate=used?rateFor(used,category):null;
+  const isOptimal=!!(used&&rec&&used.nickname===rec.card.nickname);
+  let lostReward=0;
+  if(used&&rec&&!isOptimal&&rec.rate>usedRate) lostReward=(spend.amount*(rec.rate-usedRate))/100;
+  return {category, used, usedRate, recommended:rec?rec.card:null, recommendedRate:rec?rec.rate:null, isOptimal, lostReward:Math.round(lostReward*100)/100};
+}
+function startOfDay(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
+function daysUntilDue(dueDay, today){
+  const y=today.getFullYear(), m=today.getMonth();
+  const dim=new Date(y,m+1,0).getDate();
+  let due=new Date(y,m,Math.min(dueDay,dim));
+  if(due<startOfDay(today)){
+    const nm=new Date(y,m+1,1), ndim=new Date(nm.getFullYear(),nm.getMonth()+1,0).getDate();
+    due=new Date(nm.getFullYear(),nm.getMonth(),Math.min(dueDay,ndim));
+  }
+  return Math.round((startOfDay(due)-startOfDay(today))/86400000);
+}
+function upcomingBills(bills, todayISO, days){
+  const today=new Date(todayISO+'T12:00:00');
+  return (Array.isArray(bills)?bills:[])
+    .filter(b=>!isPaidThisMonth(b,todayISO))
+    .map(b=>({...b, daysLeft:daysUntilDue(b.dueDay,today)}))
+    .filter(b=>b.daysLeft<=days)
+    .sort((a,b)=>a.daysLeft-b.daysLeft);
+}
+function monthlySpendingByCategory(spends, yearMonth){
+  const totals={};
+  for(const s of Array.isArray(spends)?spends:[]){
+    if(typeof s.dateISO!=='string'||!s.dateISO.startsWith(yearMonth)) continue;
+    const cat=s.category||categorize(s.merchant);
+    totals[cat]=Math.round(((totals[cat]||0)+Number(s.amount||0))*100)/100;
+  }
+  return totals;
+}
+</script>
+<script>
+'use strict';
+/* ================= state ================= */
+const LS_KEY='ym-finance-v1';
+let S={lang:'ko',cards:[],bills:[],spends:[],viewY:null,viewM:null,isSample:false,seq:1};
+function todayISO(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function ym(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
+function load(){
+  try{ const raw=localStorage.getItem(LS_KEY); if(raw){ const p=JSON.parse(raw); S=Object.assign(S,p); } }catch(e){}
+  if(!S.viewY){ const n=new Date(); S.viewY=n.getFullYear(); S.viewM=n.getMonth(); }
+}
+function isPaidThisMonth(b, iso){ return b.paidMonth===(iso||todayISO()).slice(0,7); }
+function t(k){ return (STR[S.lang]&&STR[S.lang][k])||STR.ko[k]||k; }
+function catName(c){ return t('cat_'+c)||c; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmt(amount, currency){
+  const n=Number(amount)||0;
+  if(currency==='KRW') return Math.round(n).toLocaleString('ko-KR')+'원';
+  return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fill(tpl, obj){ return tpl.replace(/\{(\w+)\}/g,(_,k)=>obj[k]); }
+
+/* ================= sample data ================= */
+function sampleData(){
+  const n=new Date(), iso=todayISO(n), ymd=ym(n);
+  const dISO=(day)=>ymd+'-'+String(Math.min(day,28)).padStart(2,'0');
+  return {
+    isSample:true,
+    cards:[
+      {id:'c1', nickname:'AmEx BCP', rules:{groceries:6,gas:3,other:1}},
+      {id:'c2', nickname:'Citi CC', rules:{dining:5,other:1}},
+      {id:'c3', nickname:'Flat2', rules:{other:2}},
+    ],
+    bills:[
+      {id:'b1', name:'Dominion Energy', amount:85, dueDay:12, paidMonth:''},
+      {id:'b2', name:'Washington Gas', amount:45, dueDay:18, paidMonth:''},
+      {id:'b3', name:'Verizon Fios', amount:79, dueDay:20, paidMonth:''},
+      {id:'b4', name:'Mint Mobile', amount:60, dueDay:25, paidMonth:''},
+      {id:'b5', name:'Loudoun Water', amount:35, dueDay:28, paidMonth:''},
+    ],
+    spends:[
+      {id:'s1', merchant:'Publix', amount:86.42, currency:'USD', cardNickname:'AmEx BCP', category:'groceries', dateISO:dISO(2)},
+      {id:'s2', merchant:'Shell', amount:52.10, currency:'USD', cardNickname:'Flat2', category:'gas', dateISO:dISO(3)},
+      {id:'s3', merchant:'스타벅스', amount:6.80, currency:'USD', cardNickname:'Citi CC', category:'coffee', dateISO:dISO(3)},
+      {id:'s4', merchant:'Chipotle', amount:24.35, currency:'USD', cardNickname:'Citi CC', category:'dining', dateISO:dISO(4)},
+    ],
+    seq:100,
+  };
+}
+
+/* ================= render ================= */
+function dueChip(daysLeft){
+  if(daysLeft<0) return '<span class="chip red">'+esc(t('d_overdue'))+'</span>';
+  if(daysLeft===0) return '<span class="chip red">'+esc(t('d_today'))+'</span>';
+  if(daysLeft===1) return '<span class="chip amber">'+esc(t('d_tomorrow'))+'</span>';
+  if(daysLeft<=3) return '<span class="chip amber">'+esc(daysLeft+' '+t('d_days'))+'</span>';
+  return '<span class="chip gray">'+esc(daysLeft+' '+t('d_days'))+'</span>';
+}
+function renderBillsDue(){
+  const el=document.getElementById('bills-due');
+  const list=upcomingBills(S.bills, todayISO(), 7);
+  document.getElementById('bills-count').textContent=list.length;
+  if(!list.length){ el.innerHTML='<div class="card"><div class="empty">'+esc(t('no_bills'))+'</div></div>'; return; }
+  let total=0;
+  el.innerHTML=list.map(b=>{
+    total+=Number(b.amount)||0;
+    return '<div class="card"><div class="rowline"><div><div style="font-weight:800;">'+esc(b.name)+
+      (S.isSample?' <span class="chip blue">'+esc(t('sample_tag'))+'</span>':'')+'</div>'+
+      '<div class="muted small">'+dueChip(b.daysLeft)+' <span class="money">'+esc(fmt(b.amount,'USD'))+'</span></div></div>'+
+      '<button class="btn sm primary" data-pay="'+esc(b.id)+'">'+esc(t('mark_paid'))+'</button></div></div>';
+  }).join('')+
+  '<div class="due-total"><span>'+esc(t('total'))+'</span><strong class="money">'+esc(fmt(total,'USD'))+'</strong></div>';
+  el.querySelectorAll('[data-pay]').forEach(btn=>btn.addEventListener('click',()=>{
+    const b=S.bills.find(x=>x.id===btn.getAttribute('data-pay'));
+    if(b){ b.paidMonth=ym(); save(); renderAll(); }
+  }));
+}
+function renderCards(){
+  const el=document.getElementById('cards');
+  document.getElementById('cards-count').textContent=S.cards.length;
+  if(!S.cards.length){ el.innerHTML='<div class="card"><div class="empty">'+esc(t('no_cards'))+'</div></div>'; return; }
+  el.innerHTML=S.cards.map(c=>{
+    const rules=Object.entries(c.rules||{}).filter(([,v])=>Number(v)>0)
+      .map(([k,v])=>'<span class="chip gray">'+esc(catName(k))+' '+esc(v)+'%</span>').join(' ');
+    return '<div class="card"><div class="rowline"><div><div style="font-weight:800;">'+esc(c.nickname)+'</div>'+
+      '<div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">'+rules+'</div></div>'+
+      '<button class="xbtn" data-delcard="'+esc(c.id)+'" aria-label="delete">×</button></div></div>';
+  }).join('');
+  el.querySelectorAll('[data-delcard]').forEach(b=>b.addEventListener('click',()=>{
+    S.cards=S.cards.filter(x=>x.id!==b.getAttribute('data-delcard')); save(); renderAll();
+  }));
+}
+function renderBillsManage(){
+  const el=document.getElementById('bills-manage');
+  document.getElementById('bills-m-count').textContent=S.bills.length;
+  if(!S.bills.length){ el.innerHTML='<div class="card"><div class="empty">'+esc(t('no_bills_m'))+'</div></div>'; return; }
+  const iso=todayISO();
+  el.innerHTML=S.bills.map(b=>{
+    const paid=isPaidThisMonth(b,iso);
+    return '<div class="card" style="padding-top:8px; padding-bottom:8px;"><div class="listitem"><div>'+
+      '<div style="font-weight:800;">'+esc(b.name)+'</div>'+
+      '<div class="muted small">'+esc(t('due_day'))+': '+esc(b.dueDay)+' · <span class="money">'+esc(fmt(b.amount,'USD'))+'</span> '+
+      (paid?'<span class="chip green">'+esc(t('mark_paid'))+'</span>':'')+'</div></div>'+
+      '<button class="xbtn" data-delbill="'+esc(b.id)+'" aria-label="delete">×</button></div></div>';
+  }).join('');
+  el.querySelectorAll('[data-delbill]').forEach(x=>x.addEventListener('click',()=>{
+    S.bills=S.bills.filter(b=>b.id!==x.getAttribute('data-delbill')); save(); renderAll();
+  }));
+}
+function renderMonth(){
+  const key=S.viewY+'-'+String(S.viewM+1).padStart(2,'0');
+  const d=new Date(S.viewY,S.viewM,1);
+  document.getElementById('m-label').textContent = S.lang==='ko'
+    ? d.getFullYear()+'년 '+(d.getMonth()+1)+'월'
+    : d.toLocaleString('en-US',{month:'long',year:'numeric'});
+  const totals=monthlySpendingByCategory(S.spends,key);
+  const el=document.getElementById('cat-bars');
+  const entries=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+  const max=entries.length?entries[0][1]:1;
+  const grand=entries.reduce((s,[,v])=>s+v,0);
+  document.getElementById('m-total').textContent=fmt(grand,'USD');
+  el.innerHTML=entries.length?entries.map(([c,v])=>
+    '<div class="bar-row"><div class="cat">'+esc(catName(c))+'</div><div class="track"><div class="fill" style="width:'+
+    Math.max(4,Math.round(v/max*100))+'%"></div></div><div class="amt">'+esc(fmt(v,'USD'))+'</div></div>'
+  ).join(''):'<div class="empty">'+esc(t('no_spends'))+'</div>';
+}
+function renderHistory(){
+  const el=document.getElementById('history');
+  const key=S.viewY+'-'+String(S.viewM+1).padStart(2,'0');
+  const list=S.spends.filter(s=>s.dateISO&&s.dateISO.startsWith(key)).sort((a,b)=>b.dateISO.localeCompare(a.dateISO));
+  document.getElementById('hist-count').textContent=list.length;
+  if(!list.length){ el.innerHTML='<div class="empty">'+esc(t('no_spends'))+'</div>'; return; }
+  el.innerHTML=list.map(s=>
+    '<div class="listitem"><div><div style="font-weight:700;">'+esc(s.merchant)+
+    ' <span class="chip gray">'+esc(catName(s.category||categorize(s.merchant)))+'</span></div>'+
+    '<div class="muted tiny">'+esc(s.dateISO)+(s.cardNickname?' · '+esc(s.cardNickname):'')+'</div></div>'+
+    '<div style="display:flex; align-items:center; gap:4px;"><span class="money">'+esc(fmt(s.amount,s.currency))+'</span>'+
+    '<button class="xbtn" data-delspend="'+esc(s.id)+'" aria-label="delete">×</button></div></div>'
+  ).join('');
+  el.querySelectorAll('[data-delspend]').forEach(x=>x.addEventListener('click',()=>{
+    S.spends=S.spends.filter(sp=>sp.id!==x.getAttribute('data-delspend')); save(); renderAll();
+  }));
+}
+function renderRulesEditor(){
+  const el=document.getElementById('nc-rules');
+  el.innerHTML=CATS.map(c=>'<div class="r"><label>'+esc(catName(c))+'</label><input type="number" min="0" max="100" step="0.5" value="'+(c==='other'?'1':'0')+'" data-rule="'+c+'"></div>').join('');
+}
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(n=>{ n.textContent=t(n.getAttribute('data-i18n')); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(n=>{ n.placeholder=t(n.getAttribute('data-i18n-ph')); });
+  document.getElementById('lang-ko').classList.toggle('on',S.lang==='ko');
+  document.getElementById('lang-en').classList.toggle('on',S.lang==='en');
+  document.documentElement.lang=S.lang==='ko'?'ko':'en';
+  const d=new Date();
+  document.getElementById('dateline').textContent = S.lang==='ko'
+    ? d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일'
+    : d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+}
+function renderAll(){ applyI18n(); renderRulesEditor(); renderBillsDue(); renderCards(); renderBillsManage(); renderMonth(); renderHistory(); }
+
+/* ================= spend input ================= */
+let pendingSpend=null;
+function showVerdict(parsed){
+  const box=document.getElementById('verdict');
+  box.className='verdict show';
+  if(!S.cards.length){
+    box.classList.add('unknown');
+    box.innerHTML='<div style="font-weight:800;">'+esc(t('v_nocards'))+'</div>';
+    pendingSpend=null; return;
+  }
+  const v=verdict({...parsed, category:categorize(parsed.merchant)}, S.cards);
+  pendingSpend={...parsed, category:v.category, dateISO:todayISO()};
+  let html='';
+  if(v.used && v.isOptimal){
+    box.classList.add('good');
+    html='<div style="font-weight:800;">'+esc(t('v_good_t'))+'</div><div class="small">'+esc(fill(t('v_good_d'),{card:v.used.nickname,rate:v.usedRate}))+'</div>';
+  }else if(v.used && !v.isOptimal && v.recommended){
+    box.classList.add('bad');
+    html='<div style="font-weight:800;">'+esc(t('v_bad_t'))+'</div><div class="small">'+esc(fill(t('v_bad_d'),{rec:v.recommended.nickname,rate:v.recommendedRate,lost:fmt(v.lostReward,parsed.currency)}))+'</div>';
+  }else if(v.recommended){
+    box.classList.add('unknown');
+    html='<div style="font-weight:800;">'+esc(t('v_nocard_t'))+'</div><div class="small">'+esc(fill(t('v_nocard_d'),{rec:v.recommended.nickname,rate:v.recommendedRate}))+'</div>';
+  }
+  html+='<div class="small muted" style="margin-top:6px;">'+esc(parsed.merchant)+' · '+esc(fmt(parsed.amount,parsed.currency))+' · '+esc(catName(v.category))+'</div>';
+  html+='<div class="toolbar"><button class="btn primary sm" id="v-save">'+esc(S.lang==='ko'?'기록하기':'Log it')+'</button>'+
+        '<button class="btn sm ghost" id="v-cancel">'+esc(S.lang==='ko'?'취소':'Cancel')+'</button></div>';
+  box.innerHTML=html;
+  document.getElementById('v-save').addEventListener('click',()=>{
+    pendingSpend.id='s'+(S.seq++);
+    S.spends.push(pendingSpend); S.isSample=false; save();
+    document.getElementById('spend-input').value='';
+    box.className='verdict'; box.innerHTML=''; pendingSpend=null;
+    renderAll();
+  });
+  document.getElementById('v-cancel').addEventListener('click',()=>{
+    box.className='verdict'; box.innerHTML=''; pendingSpend=null;
+    document.getElementById('spend-input').value='';
+  });
+}
+
+/* ================= advisor ================= */
+function runAdvisor(){
+  const box=document.getElementById('adv-result');
+  const q=document.getElementById('adv-input').value.trim();
+  box.className='verdict show';
+  if(!q||!S.cards.length){ box.classList.add('unknown'); box.innerHTML='<div class="small">'+esc(t('adv_nocards'))+'</div>'; return; }
+  const cat=categorize(q);
+  const rec=recommendCard(cat,S.cards);
+  box.classList.add('good');
+  box.innerHTML='<div style="font-weight:800;">'+esc(t('adv_t'))+': '+esc(rec.card.nickname)+' '+esc(rec.rate)+'%</div>'+
+    '<div class="small">'+esc(fill(t('adv_d'),{merchant:q,cat:catName(cat),card:rec.card.nickname,rate:rec.rate}))+'</div>';
+}
+
+/* ================= events ================= */
+function bind(){
+  document.getElementById('lang-ko').addEventListener('click',()=>{S.lang='ko';save();renderAll();});
+  document.getElementById('lang-en').addEventListener('click',()=>{S.lang='en';save();renderAll();});
+  const si=document.getElementById('spend-input');
+  si.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){
+      const p=parseSpendInput(si.value,S.cards);
+      if(p) showVerdict(p);
+      else { const box=document.getElementById('verdict'); box.className='verdict show unknown';
+        box.innerHTML='<div class="small">'+esc(S.lang==='ko'?'금액을 인식하지 못했어요. 예: Publix $49':'Could not find an amount. e.g. Publix $49')+'</div>'; }
+    }
+  });
+  document.getElementById('adv-input').addEventListener('keydown',e=>{ if(e.key==='Enter') runAdvisor(); });
+  document.getElementById('m-prev').addEventListener('click',()=>{ S.viewM--; if(S.viewM<0){S.viewM=11;S.viewY--;} renderMonth(); renderHistory(); });
+  document.getElementById('m-next').addEventListener('click',()=>{ S.viewM++; if(S.viewM>11){S.viewM=0;S.viewY++;} renderMonth(); renderHistory(); });
+  document.getElementById('nc-add').addEventListener('click',()=>{
+    const nick=document.getElementById('nc-nick').value.trim();
+    if(!nick) return;
+    const rules={};
+    document.querySelectorAll('#nc-rules [data-rule]').forEach(inp=>{
+      const v=parseFloat(inp.value); if(v>0) rules[inp.getAttribute('data-rule')]=v;
+    });
+    if(!rules.other) rules.other=1;
+    S.cards.push({id:'c'+(S.seq++), nickname:nick, rules});
+    document.getElementById('nc-nick').value=''; S.isSample=false; save(); renderAll();
+  });
+  document.getElementById('nb-add').addEventListener('click',()=>{
+    const name=document.getElementById('nb-name').value.trim();
+    const amt=parseFloat(document.getElementById('nb-amt').value);
+    const day=parseInt(document.getElementById('nb-day').value,10);
+    if(!name||!(amt>0)||!(day>=1&&day<=31)) return;
+    S.bills.push({id:'b'+(S.seq++), name, amount:amt, dueDay:day, paidMonth:''});
+    document.getElementById('nb-name').value=''; document.getElementById('nb-amt').value=''; document.getElementById('nb-day').value='';
+    S.isSample=false; save(); renderAll();
+  });
+  document.getElementById('d-export').addEventListener('click',()=>{
+    const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='finance-hq-'+todayISO()+'.json'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  });
+  document.getElementById('d-import-btn').addEventListener('click',()=>document.getElementById('d-import').click());
+  document.getElementById('d-import').addEventListener('change',e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{ try{ const p=JSON.parse(r.result);
+        if(!Array.isArray(p.cards)||!Array.isArray(p.bills)||!Array.isArray(p.spends)) throw new Error('bad');
+        S=Object.assign({lang:S.lang,viewY:S.viewY,viewM:S.viewM,seq:1},p);
+        save(); renderAll(); alert(t('import_ok'));
+      }catch(err){ alert(t('import_fail')); } };
+    r.readAsText(f); e.target.value='';
+  });
+  document.getElementById('d-sample').addEventListener('click',()=>{
+    const keep={lang:S.lang,viewY:S.viewY,viewM:S.viewM};
+    S=Object.assign(keep,sampleData()); save(); renderAll(); alert(t('sample_loaded'));
+  });
+  document.getElementById('d-reset').addEventListener('click',()=>{
+    if(!confirm(t('confirm_reset'))) return;
+    const keep={lang:S.lang,viewY:S.viewY,viewM:S.viewM};
+    S=Object.assign(keep,{cards:[],bills:[],spends:[],isSample:false,seq:1}); save(); renderAll();
+  });
+}
+
+/* ================= init ================= */
+load(); bind(); renderAll();
+</script>
+</body>
+</html>
